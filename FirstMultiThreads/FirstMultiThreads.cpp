@@ -96,13 +96,22 @@ void CreateThreadwithFunction()
 	
 	//with param
 	thread funcTest1(threadFunc2,"Bryan");
+	cout << "Thread ID: " << funcTest1.get_id() << endl;
+	thread t2 = move(funcTest1);   //thread move, not reference, requires 
 	//detach funcTest1 from main thread
 	//funcTest1.detach();
 	//check if thread is joinable
-	if (funcTest1.joinable())
+	/*std::cout << "Number of threads = "
+		<< std::thread::hardware_concurrency() << std::endl;*/
+	//if (funcTest1.joinable())
+	//{
+	//	//main is blocked until funcTest1 is not finished
+	//	funcTest1.join();
+	//}
+	if (t2.joinable())    
 	{
 		//main is blocked until funcTest1 is not finished
-		funcTest1.join();
+		t2.join();
 	}
 }
 
@@ -131,6 +140,7 @@ void CreateThreadwithMemberFunction()
 	//thread functorTest(&MyMemClass::publicFunction2, &myFunc, s1);
 	thread functorTest(&MyMemClass::publicFunction2, &myFunc, ref(s1));  //can acctually pass ref
 	//thread functorTest(&MyMemClass::publicFunction2, &myFunc, move(s1));  //move s1, main() will no longer has this varaible
+	cout <<"Thread ID: "<< functorTest.get_id()<<endl;
 	if (functorTest.joinable())
 		functorTest.join();
 	cout << s1 << endl;
@@ -138,14 +148,62 @@ void CreateThreadwithMemberFunction()
 
 
 
+void LambdaThreadFunction()
+{
+	thread lambdaFunc([]()
+		{
+			cout << "Thread function with lambda function!" << endl;
+		}
+	);
+	lambdaFunc.join();
+
+	//vetor container stores threads, lamda func with param
+	vector<thread> workers2;
+	for (int i = 0; i < 5;i++)
+	{
+		workers2.push_back(thread([](int j)
+		{
+			cout << "Thread function j = " << j << endl;
+		}, i));
+	}
+	cout << "main thread\n";
+
+	for_each(workers2.begin(), workers2.end(), [](thread &t)
+	{
+		t.join();
+	});
+
+	//vetor container stores threads, lamda func without param
+	vector<thread> workers;
+	for (int i = 0; i < 5; i++)
+	{
+		workers.push_back(thread([i]()
+		{
+			cout << "Thread function i="<<i<< endl;
+		}));
+	}
+	cout << "main thread\n";/**/
+
+	for_each(workers.begin(),workers.end(),[](thread &t)
+	{
+		t.join();
+	});
+
+	return;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	
 
-	CreateThreadwithMemberFunction();
+
+	LambdaThreadFunction();
+	//CreateThreadwithMemberFunction();
 	//CreateThreadwithFunctor();
 	//CreateThreadwithFunction();
 	//Functors();
+	/*std::cout << "Number of threads = "
+		<< std::thread::hardware_concurrency() << std::endl;*/
 	return 0;
 }
 
