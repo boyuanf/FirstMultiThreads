@@ -227,10 +227,17 @@ void popVec()
 	mLock.unlock();
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+void makeCall()
+{
+	mLock.lock();
+	cout << "Hello my friend, this is thread: " << this_thread::get_id() << endl;
+	mLock.unlock();
+}
+
+void MutexVector()
 {
 	thread PushT(pushVec);
-	_sleep(500);
+	this_thread::sleep_for(chrono::milliseconds(500));
 	thread PopT(popVec);
 	
 
@@ -238,8 +245,27 @@ int _tmain(int argc, _TCHAR* argv[])
 		PushT.join();
 	if (PopT.joinable())
 		PopT.join();
+}
 
+int _tmain(int argc, _TCHAR* argv[])
+{
+	thread person1(makeCall);
+	thread person2(makeCall);
+	thread person3(makeCall);
+	mLock.lock();
+	cout << "2nd Hello my friend, this is thread: " << person1.get_id() << endl;
+	cout << "2nd Hello my friend, this is thread: " << person2.get_id() << endl;
+	cout << "2nd Hello my friend, this is thread: " << person3.get_id() << endl;
+	mLock.unlock();
+	if (person1.joinable())
+		person1.join();
+	if (person2.joinable())
+		person2.join();
+	if (person3.joinable())
+		person3.join();
 
+	
+	//MutexVector();
 	//MoveVariable();
 	//LambdaThreadFunction();
 	//CreateThreadwithMemberFunction();
