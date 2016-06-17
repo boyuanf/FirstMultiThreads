@@ -8,6 +8,7 @@
 #include <thread>
 #include <vector>
 #include <algorithm>
+#include <mutex>
 
 using namespace std;
 
@@ -18,6 +19,7 @@ void threadFunc()
 
 void threadFunc2(string name)
 {
+	this_thread::sleep_for(chrono::seconds(5));
 	cout << "Welcome to Multithreading: " <<name<< endl;
 }
 
@@ -173,7 +175,7 @@ void LambdaThreadFunction()
 		t.join();
 	});
 
-	//vetor container stores threads, lamda func without param
+	//vetor container stores threads, lambda func without param, the lambda func capture i from outside
 	vector<thread> workers;
 	for (int i = 0; i < 5; i++)
 	{
@@ -192,12 +194,54 @@ void LambdaThreadFunction()
 	return;
 }
 
+void MoveVariable()
+{
+	string a = "abc";
+	string b="dgef";
+	//b = a;
+	b = move(a);
+}
+
+vector<int> vec;
+mutex mLock;
+void pushVec()
+{
+	mLock.lock();
+	for (int i = 0; i < 5;i++)
+	{
+		cout << "push " << i << endl;
+		vec.push_back(i);
+	}
+	mLock.unlock();
+}
+
+void popVec()
+{
+	mLock.lock();
+	for (int i = 0; i < 5;i++)
+	{
+		int val = vec.back();
+		vec.pop_back();
+		cout << "Pop " << val << endl;
+	}
+	mLock.unlock();
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
+	thread PushT(pushVec);
+	_sleep(500);
+	thread PopT(popVec);
 	
 
+	if (PushT.joinable())
+		PushT.join();
+	if (PopT.joinable())
+		PopT.join();
 
-	LambdaThreadFunction();
+
+	//MoveVariable();
+	//LambdaThreadFunction();
 	//CreateThreadwithMemberFunction();
 	//CreateThreadwithFunctor();
 	//CreateThreadwithFunction();
