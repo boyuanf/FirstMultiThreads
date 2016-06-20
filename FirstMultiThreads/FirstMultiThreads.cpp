@@ -9,6 +9,7 @@
 #include <vector>
 #include <algorithm>
 #include <mutex>
+#include <list>
 
 using namespace std;
 
@@ -204,6 +205,7 @@ void MoveVariable()
 
 vector<int> vec;
 mutex mLock;
+
 void pushVec()
 {
 	mLock.lock();
@@ -247,7 +249,7 @@ void MutexVector()
 		PopT.join();
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+void MutexCoutResource()
 {
 	thread person1(makeCall);
 	thread person2(makeCall);
@@ -263,8 +265,114 @@ int _tmain(int argc, _TCHAR* argv[])
 		person2.join();
 	if (person3.joinable())
 		person3.join();
+}
 
-	
+int g_i = 0;
+list<int> intervalList;
+
+void addToList(int max, int interval)
+{
+	lock_guard<mutex> guard(mLock);
+	g_i++;
+	for (int i = 0; i < max; i++)
+		if ((i%interval) == 0)
+			intervalList.push_back(i);
+	// mLock is automatically released when lock goes out of scope
+}
+
+void printList()
+{
+	lock_guard<mutex> guard2(mLock);
+	for (auto itr = intervalList.begin(), enditr = intervalList.end(); itr != enditr; itr++)
+		cout << *itr << ", ";
+	// mLock is automatically released when lock goes out of scope
+}
+
+void LockGuard()
+{
+	int max = 50;
+	thread t1(addToList, max, 2);
+	thread t2(addToList, max, 10);
+	thread t3(printList);
+
+	if (t1.joinable())
+		t1.join();
+	if (t2.joinable())
+		t2.join();
+	if (t3.joinable())
+		t3.join();
+}
+
+class MyStack
+{
+public:
+	MyStack() {};
+	~MyStack() {};
+	void pop();
+	int top(){ return data.back(); }
+	void push(int n);
+	int getSize(){ return data.size(); }
+private:
+	vector<int> data;
+};
+
+void MyStack::pop()
+{
+	data.pop_back();
+}
+
+void MyStack::push(int n)
+{
+	data.push_back(n);
+}
+
+void ProcessMyStack(int val, string s)
+{
+	lock_guard<mutex> guard(mLock);
+	cout << s << " : " << val << endl;
+}
+
+void ProcessMyStackThread(MyStack& st, string s)
+{
+	int val = st.top();
+	st.pop();
+	ProcessMyStack(val, s);
+	this_thread::sleep_for(chrono::milliseconds(10));
+}
+
+void ProcessMyStackThread2(MyStack& st, string s)
+{
+	int val = st.top();
+	st.pop();
+	ProcessMyStack(val, s);
+	this_thread::sleep_for(chrono::milliseconds(20));
+}
+
+
+
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+	MyStack st;
+	for (int i = 0; i < 30; i++)  st.push(i);
+
+	while (true) {
+		if (st.getSize() > 0) {
+			thread t1(&ProcessMyStackThread, ref(st), string("thread1"));
+			t1.join();
+		}
+		else
+			break;
+		if (st.getSize() > 0) {
+			thread t2(&ProcessMyStackThread, ref(st), string("thread2"));
+			t2.join();
+		}
+		else
+			break;
+	}
+
+	//LockGuard();
+	//MutexCoutResource();
 	//MutexVector();
 	//MoveVariable();
 	//LambdaThreadFunction();
