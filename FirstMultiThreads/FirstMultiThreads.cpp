@@ -318,11 +318,13 @@ private:
 
 void MyStack::pop()
 {
+	lock_guard<mutex> guard(mLock);
 	data.pop_back();
 }
 
 void MyStack::push(int n)
 {
+	lock_guard<mutex> guard(mLock);
 	data.push_back(n);
 }
 
@@ -337,22 +339,21 @@ void ProcessMyStackThread(MyStack& st, string s)
 	int val = st.top();
 	st.pop();
 	ProcessMyStack(val, s);
-	this_thread::sleep_for(chrono::milliseconds(10));
+	//this_thread::sleep_for(chrono::milliseconds(10));
 }
 
 void ProcessMyStackThread2(MyStack& st, string s)
 {
 	int val = st.top();
 	st.pop();
+	this_thread::sleep_for(chrono::milliseconds(10));
 	ProcessMyStack(val, s);
-	this_thread::sleep_for(chrono::milliseconds(20));
 }
 
 
-
-
-int _tmain(int argc, _TCHAR* argv[])
+void RaceConditions1()
 {
+	//Two threads access the same stack cause race condition
 	MyStack st;
 	for (int i = 0; i < 30; i++)  st.push(i);
 
@@ -370,7 +371,43 @@ int _tmain(int argc, _TCHAR* argv[])
 		else
 			break;
 	}
+}
 
+mutex myMutex;
+
+void shared_cout(int i)
+{
+	lock_guard<mutex> guard(mLock);
+	cout << i << " " << endl;
+}
+
+void Print10Num(int n)
+{
+	for (int i = 10 * (n - 1); i < 10 * n;i++)
+	{
+		shared_cout(i);
+	}
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+	thread t1(Print10Num, 1);  //0-9
+	thread t2(Print10Num, 2);  //10-19
+	thread t3(Print10Num, 3);  //20-29
+	thread t4(Print10Num, 4);  //30-39
+	thread t5(Print10Num, 5);  //40-49
+
+	for (int i = 0; i > -50; i--)
+		shared_cout(i);    //(0,-49)
+
+	t1.join();
+	t2.join();
+	t3.join();
+	t4.join();
+	t5.join();
+
+
+	//RaceConditions1();
 	//LockGuard();
 	//MutexCoutResource();
 	//MutexVector();
