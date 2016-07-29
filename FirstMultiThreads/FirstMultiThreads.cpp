@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <mutex>
 #include <list>
+#include <Windows.h>
+#include <Winbase.h>
+#include <memory>
 
 using namespace std;
 
@@ -389,7 +392,7 @@ void Print10Num(int n)
 	}
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+void ThreadPrintNum()
 {
 	thread t1(Print10Num, 1);  //0-9
 	thread t2(Print10Num, 2);  //10-19
@@ -405,8 +408,144 @@ int _tmain(int argc, _TCHAR* argv[])
 	t3.join();
 	t4.join();
 	t5.join();
+}
 
+void CreateMultipleThread()
+{
+	vector<thread> myThreads;
+	for (int i = 0; i < thread::hardware_concurrency(); i++)
+	{
+		myThreads.emplace_back(thread([](int j)
+		                              {
+			                              cout << "Create thread" << j << endl;
+		                              }, i));
+	}
+	
+	for (auto &i : myThreads)
+		i.join();
+}
 
+unsigned WINAPI ThreadPoolProcess(LPVOID pvParam,int i)
+{
+	HANDLE                        IoPort = (HANDLE*)pvParam;
+	unsigned long                 pN1, pN2;
+	OVERLAPPED*                   pOverLapped;
+	
+	cout << "Thread " << i << " is running!" << endl;
+
+	while (GetQueuedCompletionStatus(IoPort, &pN1, (PULONG_PTR)&pN2, &pOverLapped, INFINITE))
+	{
+		if (pOverLapped == (OVERLAPPED*)0xFFFFFFFF)
+			break;
+		else
+		{
+			//implement my own function
+			cout << "Thread: " << i << " processing " << (char *)pN1 << endl;
+		}
+	}
+	return 0;
+}
+
+void IOCompletionPortTest()
+{
+	char teststr[] = "Pass para";
+	HANDLE  m_hIoPort;
+	m_hIoPort = CreateIoCompletionPort((HANDLE)INVALID_HANDLE_VALUE, NULL, 0, 0);
+	vector<thread> myThreads;
+	for (int i = 0; i < thread::hardware_concurrency(); i++)
+	{
+		myThreads.emplace_back(thread(ThreadPoolProcess, m_hIoPort,i));
+	}
+	for (int i = 0; i < 50;i++)
+	{
+		if (!PostQueuedCompletionStatus(m_hIoPort, (DWORD)teststr, 0, NULL))
+		{
+			cout << "Unable to post data to queue!" << endl;
+		}
+	}
+	
+	for (unsigned int n = 0; n < thread::hardware_concurrency(); n++)
+		PostQueuedCompletionStatus(m_hIoPort, 0, 0, (OVERLAPPED*)0xFFFFFFFF);  // tell threads to finish
+
+	for (auto &i : myThreads)
+		i.join();
+
+	CloseHandle(m_hIoPort);
+}
+
+//An abstract class present the shape interface
+class IShape
+{
+public:
+	virtual void draw() = 0;   //pure virtual function
+};
+
+//Classes implemented the shape interface
+class Circle : public IShape
+{
+public:
+	void draw() { cout << "circle\n"; }
+};
+
+class Triangle : public IShape
+{
+public:
+	void draw() { cout << "triangle\n"; }
+};
+
+class Paint
+{
+private:
+	IShape *m_shape;
+public:
+	Paint(IShape *s)
+	{
+		m_shape = s;
+	}
+	void DrawPic()
+	{
+		m_shape->draw();
+	}
+};
+
+class PaintSmart
+{
+private:
+	shared_ptr<IShape> m_shapes;
+public:
+	PaintSmart(shared_ptr<IShape> s)
+	{
+		m_shapes = s;
+	}
+	void DrawPic() const
+	{
+		m_shapes->draw();
+	}
+};
+
+void DependencyInjection()
+{
+	//Using naked pointer
+	Paint *paintC = new Paint(new Circle());
+	Paint *paintT = new Paint(new Triangle());
+	paintC->DrawPic();
+	paintT->DrawPic();
+
+	//Using smart pointer
+	shared_ptr<PaintSmart> paintCS = make_shared<PaintSmart>(make_shared<Circle>());  // faster than use new
+	//shared_ptr<PaintSmart> paintCS = make_shared<PaintSmart>(new Circle());
+	shared_ptr<PaintSmart> paintTS = make_shared<PaintSmart>(make_shared<Triangle>());
+	paintCS->DrawPic();
+	paintTS->DrawPic();
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+
+	//DependencyInjection();
+	//IOCompletionPortTest();
+	//CreateMultipleThread();
+	//ThreadPrintNum();
 	//RaceConditions1();
 	//LockGuard();
 	//MutexCoutResource();
